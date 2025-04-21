@@ -12,7 +12,7 @@ enum NoiseType {
 }
 let nodes: number = 12
 let gradients: { x: number; y: number }[][] = [];
-let currentRng: FastRandomBlocks = Random.createRNG(Math.randomRange(0x00000001, 0xFFFFFFFF));
+let currentRng: FastRandomBlocks = Random.createRNG(Math.randomRange(1, 65536));
 
 //% color="#556B2F"
 namespace Noise {
@@ -51,28 +51,27 @@ namespace Noise {
                 nodes = scale || 4;
                 initialize_gradients();
                 return generate_perlin_noise(width, height);
-                break;
+                
             case NoiseType.Static:
                 return generate_static_noise(width, height);
-                break;
+                
             case NoiseType.Ridged:
                 nodes = scale || 4;
                 initialize_gradients();
                 return generate_ridged_noise(width, height);
-                break;
+                
             case NoiseType.Terrain:
                 nodes = scale || 4;
                 initialize_gradients();
                 return generate_terrain_noise(width, height);
-                break;
+                
             case NoiseType.River:
                 nodes = scale || 4;
                 initialize_gradients();
                 return generate_river_noise(width, height);
-                break;
+                
             default:
                 return [];
-                break
         }
     }
 
@@ -389,8 +388,10 @@ namespace Noise {
      * @param noise The 2D noise map to invert
      * @returns A new 2D array where each value is inverted
      */
-    //% block="Invert noise map"
+    //% block="Invert noise map $noise"
     //% group="Noise Utils"
+    //% noise.defl=noiseMap
+    //% noise.shadow=variables_get
     export function invert_noise(noise: number[][]): number[][] {
         let height = noise.length;
         let width = noise[0].length;
