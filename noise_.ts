@@ -312,38 +312,23 @@ namespace Noise {
 
     // Creates river-like noise with thin low areas and large high areas
     export function generate_river_noise(width: number, height: number): number[][] {
-        let noise: number[][] = [];
+        let ridged = generate_ridged_noise(width, height);
+        let river: number[][] = [];
 
-        // First, generate base perlin noise
         for (let y = 0; y < height; y++) {
             let row = [];
             for (let x = 0; x < width; x++) {
-                let value = perlin_get(x / width * (nodes - 1), y / height * (nodes - 1));
+                // Invert ridged noise to make valleys
+                let value = 1 - ridged[y][x];
                 row.push(value);
             }
-            noise.push(row);
+            river.push(row);
         }
 
-        // Then modify it to create river-like structures
-        for (let y = 0; y < height; y++) {
-            for (let x = 0; x < width; x++) {
-                // Apply transformation that creates thin valleys (rivers)
-                let value = noise[y][x];
-
-                // This formula makes low values (valleys) become even lower
-                // and narrows them, while making high values (land) broader
-                if (value < 0.4) {
-                    // Make deeper and thinner rivers
-                    noise[y][x] = Math.pow(value * 2.5, 2.0) / 2.5;
-                } else {
-                    // Expand higher terrain
-                    noise[y][x] = 0.4 + (value - 0.4) * 0.9;
-                }
-            }
-        }
-
-        return noise;
+        return river;
     }
+
+
 
     /**
      * Combine two noise maps to create interesting terrain features
@@ -396,4 +381,30 @@ namespace Noise {
 
         return result;
     }
+
+    /**
+     * Inverts a 2D noise map. Each value `v` becomes `1 - v`.
+     * Useful for transforming ridged noise into valleys (e.g. riverbeds).
+     * 
+     * @param noise The 2D noise map to invert
+     * @returns A new 2D array where each value is inverted
+     */
+    //% block="Invert noise map"
+    //% group="Noise Utils"
+    export function invert_noise(noise: number[][]): number[][] {
+        let height = noise.length;
+        let width = noise[0].length;
+        let result: number[][] = [];
+
+        for (let y = 0; y < height; y++) {
+            let row: number[] = [];
+            for (let x = 0; x < width; x++) {
+                row.push(1 - noise[y][x]);
+            }
+            result.push(row);
+        }
+
+        return result;
+    }
+
 }
