@@ -2,7 +2,13 @@ enum NoiseType {
     //% block="Perlin"
     Perlin,
     //% block="Static"
-    Static
+    Static,
+    //% block="Ridged"
+    Ridged,
+    //% block="Terrain"
+    Terrain,
+    //% block="River"
+    River
 }
 let nodes: number = 12
 let gradients: { x: number; y: number }[][] = [];
@@ -23,7 +29,7 @@ namespace Noise {
 
     /**
      * Generates a noise map based on the specified noise type.
-     * @param noiseType Type of noise to generate (Perlin or Static).
+     * @param noiseType Type of noise to generate (Perlin, Static, Ridged, Terrain, or River).
      * @param width The width of the noise map.
      * @param height The height of the noise map.
      * @returns A 2D array representing the generated noise map.
@@ -49,10 +55,93 @@ namespace Noise {
             case NoiseType.Static:
                 return generate_static_noise(width, height);
                 break;
+            case NoiseType.Ridged:
+                nodes = scale || 4;
+                initialize_gradients();
+                return generate_ridged_noise(width, height);
+                break;
+            case NoiseType.Terrain:
+                nodes = scale || 4;
+                initialize_gradients();
+                return generate_terrain_noise(width, height);
+                break;
+            case NoiseType.River:
+                nodes = scale || 4;
+                initialize_gradients();
+                return generate_river_noise(width, height);
+                break;
             default:
                 return [];
                 break
         }
+    }
+
+    /**
+     * Create a combined noise map using multiple noise types and parameters.
+     * @param width The width of the noise map
+     * @param height The height of the noise map
+     * @param layers Number of noise layers to combine (more = more detail but slower)
+     */
+    //% block="create layered noise map width $width height $height layers $layers || scale $scale persistence $persistence"
+    //% blockSetVariable=noiseMap
+    //% width.defl=160
+    //% height.defl=120
+    //% layers.defl=3
+    //% scale.defl=4
+    //% persistence.defl=0.5
+    //% inlineInputMode=inline
+    export function createLayeredNoiseMap(width: number, height: number, layers: number, scale?: number, persistence?: number): number[][] {
+        // Make sure we have an RNG - if not, create a default one
+        if (!currentRng) {
+            currentRng = new FastRandomBlocks(1234);
+        }
+
+        nodes = scale || 4;
+        let persistenceValue = persistence || 0.5;
+
+        let noiseMap: number[][] = [];
+        // Initialize noiseMap with zeros
+        for (let y = 0; y < height; y++) {
+            let row = [];
+            for (let x = 0; x < width; x++) {
+                row.push(0);
+            }
+            noiseMap.push(row);
+        }
+
+        let amplitude = 1;
+        let totalAmplitude = 0;
+
+        // Add multiple layers of noise at different frequencies
+        for (let i = 0; i < layers; i++) {
+            // Create a new gradient field for this layer
+            initialize_gradients();
+
+            // The frequency increases with each layer
+            let frequency = Math.pow(2, i);
+            let layerNodes = nodes * frequency;
+
+            for (let y = 0; y < height; y++) {
+                for (let x = 0; x < width; x++) {
+                    // Calculate perlin noise for this point
+                    let noiseValue = perlin_get((x / width) * layerNodes, (y / height) * layerNodes);
+                    // Add weighted noise to the total
+                    noiseMap[y][x] += noiseValue * amplitude;
+                }
+            }
+
+            totalAmplitude += amplitude;
+            amplitude *= persistenceValue; // Decrease amplitude for next layer
+        }
+
+        // Normalize to 0-1 range
+        for (let y = 0; y < height; y++) {
+            for (let x = 0; x < width; x++) {
+                noiseMap[y][x] /= totalAmplitude;
+            }
+        }
+
+        return noiseMap;
     }
 
     /**
@@ -72,7 +161,33 @@ namespace Noise {
                 noise.setPixel(x, y, color);
             }
         }
-        return noise;
+        return noise.clone();
+    }
+
+    /**
+     * Apply a threshold to a noise map to create binary terrain
+     * @param noiseMap The noise map to threshold
+     * @param threshold Value between 0-1 where values above become 1, below become 0
+     */
+    //% block="threshold $noiseMap at $threshold"
+    //% noiseMap.defl=noiseMap
+    //% noiseMap.shadow=variables_get
+    //% threshold.defl=0.5
+    //% threshold.min=0 threshold.max=1
+    export function thresholdNoiseMap(noiseMap: number[][], threshold: number): number[][] {
+        const h: number = noiseMap.length;
+        const w: number = noiseMap[0].length;
+        let result: number[][] = [];
+
+        for (let y = 0; y < h; y++) {
+            let row = [];
+            for (let x = 0; x < w; x++) {
+                row.push(noiseMap[y][x] > threshold ? 1 : 0);
+            }
+            result.push(row);
+        }
+
+        return result;
     }
 
     // Helper function that uses the seeded RNG instead of Math.random()
@@ -157,5 +272,128 @@ namespace Noise {
         }
 
         return noise;
+    }
+
+    // NEW NOISE FUNCTIONS
+
+    // Creates ridged noise - inverts peaks to make sharp ridges
+    export function generate_ridged_noise(width: number, height: number): number[][] {
+        let noise: number[][] = [];
+        for (let y = 0; y < height; y++) {
+            let row = [];
+            for (let x = 0; x < width; x++) {
+                // Get perlin noise value
+                let value = perlin_get(x / width * (nodes - 1), y / height * (nodes - 1));
+                // Invert the peaks to make sharp ridges
+                value = 1 - Math.abs(2 * value - 1);
+                row.push(value);
+            }
+            noise.push(row);
+        }
+        return noise;
+    }
+
+    // Creates terrain-like noise with plateaus and steep cliffs
+    export function generate_terrain_noise(width: number, height: number): number[][] {
+        let noise: number[][] = [];
+        for (let y = 0; y < height; y++) {
+            let row = [];
+            for (let x = 0; x < width; x++) {
+                // Get perlin noise value
+                let value = perlin_get(x / width * (nodes - 1), y / height * (nodes - 1));
+                // Apply curve to emphasize high areas (plateaus) and exaggerate slopes
+                value = Math.pow(value, 1.5); // Adjust power for different terrain styles
+                row.push(value);
+            }
+            noise.push(row);
+        }
+        return noise;
+    }
+
+    // Creates river-like noise with thin low areas and large high areas
+    export function generate_river_noise(width: number, height: number): number[][] {
+        let noise: number[][] = [];
+
+        // First, generate base perlin noise
+        for (let y = 0; y < height; y++) {
+            let row = [];
+            for (let x = 0; x < width; x++) {
+                let value = perlin_get(x / width * (nodes - 1), y / height * (nodes - 1));
+                row.push(value);
+            }
+            noise.push(row);
+        }
+
+        // Then modify it to create river-like structures
+        for (let y = 0; y < height; y++) {
+            for (let x = 0; x < width; x++) {
+                // Apply transformation that creates thin valleys (rivers)
+                let value = noise[y][x];
+
+                // This formula makes low values (valleys) become even lower
+                // and narrows them, while making high values (land) broader
+                if (value < 0.4) {
+                    // Make deeper and thinner rivers
+                    noise[y][x] = Math.pow(value * 2.5, 2.0) / 2.5;
+                } else {
+                    // Expand higher terrain
+                    noise[y][x] = 0.4 + (value - 0.4) * 0.9;
+                }
+            }
+        }
+
+        return noise;
+    }
+
+    /**
+     * Combine two noise maps to create interesting terrain features
+     * @param noiseMap1 The first noise map
+     * @param noiseMap2 The second noise map
+     * @param operation The operation to perform (0=multiply, 1=add, 2=subtract, 3=max, 4=min)
+     */
+    //% block="combine $noiseMap1 with $noiseMap2 using $operation"
+    //% noiseMap1.defl=noiseMap1
+    //% noiseMap1.shadow=variables_get
+    //% noiseMap2.defl=noiseMap2
+    //% noiseMap2.shadow=variables_get
+    //% operation.defl=0
+    export function combineNoiseMaps(noiseMap1: number[][], noiseMap2: number[][], operation: number): number[][] {
+        const h = Math.min(noiseMap1.length, noiseMap2.length);
+        const w = Math.min(noiseMap1[0].length, noiseMap2[0].length);
+        let result: number[][] = [];
+
+        for (let y = 0; y < h; y++) {
+            let row = [];
+            for (let x = 0; x < w; x++) {
+                let val1 = noiseMap1[y][x];
+                let val2 = noiseMap2[y][x];
+                let combinedValue = 0;
+
+                switch (operation) {
+                    case 0: // Multiply
+                        combinedValue = val1 * val2;
+                        break;
+                    case 1: // Add
+                        combinedValue = (val1 + val2) / 2; // Normalize to 0-1
+                        break;
+                    case 2: // Subtract
+                        combinedValue = Math.max(0, Math.min(1, val1 - val2 + 0.5)); // Normalize to 0-1
+                        break;
+                    case 3: // Max
+                        combinedValue = Math.max(val1, val2);
+                        break;
+                    case 4: // Min
+                        combinedValue = Math.min(val1, val2);
+                        break;
+                    default:
+                        combinedValue = val1;
+                }
+
+                row.push(combinedValue);
+            }
+            result.push(row);
+        }
+
+        return result;
     }
 }
