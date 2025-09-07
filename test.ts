@@ -15,10 +15,10 @@ pause(1000);
 let baseNoise = Noise.createNoiseMap(NoiseType.Terrain, 160, 120, 4);
 
 // Create river network
-let riverNoise = Noise.createNoiseMap(NoiseType.River, 160, 120, 6);
+let riverNoise = Noise.createNoiseMap(NoiseType.Static, 160, 120, 1);
 
 // Combine them (rivers cut through terrain)
-let combinedNoise = Noise.combineNoiseMaps(baseNoise, riverNoise, 4); // 4 = min operation
+let combinedNoise = Noise.combineNoiseMaps(baseNoise, riverNoise, 2); // 4 = min operation
 
 // Visualize
 let terrainImage = Noise.noiseToImage(combinedNoise);

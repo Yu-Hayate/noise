@@ -10,12 +10,13 @@ enum NoiseType {
     //% block="River"
     River
 }
-let nodes: number = 12
-let gradients: { x: number; y: number }[][] = [];
-let currentRng: FastRandomBlocks = Random.createRNG(Math.randomRange(1, 65536));
 
 //% color="#556B2F"
 namespace Noise {
+    let nodes: number = 12
+    let gradients: { x: number; y: number }[][] = [];
+    let currentRng: FastRandomBlocks = Random.createRNG(Math.randomRange(1, 65536));
+
     /**
      * Sets the random number generator for noise generation
      * @param rng The FastRandomBlocks instance to use for seeded randomness
@@ -333,7 +334,14 @@ namespace Noise {
      * Combine two noise maps to create interesting terrain features
      * @param noiseMap1 The first noise map
      * @param noiseMap2 The second noise map
-     * @param operation The operation to perform (0=multiply, 1=add, 2=subtract, 3=max, 4=min)
+     * @param operation The operation to perform:
+     * - 0 = Multiply: multiplies corresponding values.
+     * - 1 = Add: averages corresponding values (normalized).
+     * - 2 = Subtract: subtracts second map from first and normalizes to [0,1].
+     * - 3 = Max: selects the maximum value at each position.
+     * - 4 = Min: selects the minimum value at each position.
+     * - 5 = Lerp blend: interpolates `noiseMap2` based on the scaled value of `noiseMap1`.
+     * - Default: uses values from `noiseMap1` unchanged
      */
     //% block="combine $noiseMap1 with $noiseMap2 using $operation"
     //% noiseMap1.defl=noiseMap1
@@ -358,16 +366,19 @@ namespace Noise {
                         combinedValue = val1 * val2;
                         break;
                     case 1: // Add
-                        combinedValue = (val1 + val2) / 2; // Normalize to 0-1
+                        combinedValue = (val1 + val2) / 2;
                         break;
                     case 2: // Subtract
-                        combinedValue = Math.max(0, Math.min(1, val1 - val2 + 0.5)); // Normalize to 0-1
+                        combinedValue = Math.max(0, Math.min(1, val1 - val2 + 0.5));
                         break;
                     case 3: // Max
                         combinedValue = Math.max(val1, val2);
                         break;
                     case 4: // Min
                         combinedValue = Math.min(val1, val2);
+                        break;
+                    case 5: // lerp based on val1
+                        combinedValue = noise_blend(val1, val2)
                         break;
                     default:
                         combinedValue = val1;
@@ -380,6 +391,12 @@ namespace Noise {
 
         return result;
     }
+    function noise_blend(a: number, b: number): number { // maps a into a percantage and uses it as lerping on b
+        let t = (a - 1) / 14
+        let result = b * t
+        return result
+    }
+
 
     /**
      * Inverts a 2D noise map. Each value `v` becomes `1 - v`.
