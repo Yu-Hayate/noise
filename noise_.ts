@@ -8,16 +8,36 @@ enum NoiseType {
     //% block="Terrain"
     Terrain,
     //% block="River"
-    River
+    River,
+    
+}
+enum MaskType {
+    //% block="Gradient"
+    Gradient,
+    //% block="solid"
+    Solid,
+    //% block="Island"
+    Island,
+    //% block="Edge falloff"
+    Edge_falloff,
+    //% block="Vertical gradient"
+    Vertical_gradient,
+    //% block="Horizontal gradient"
+    Horizontal_gradient,
+    //% block="Checkerboard"
+    Checkerboard,
+    
+
 }
 enum CombineOptions {
-    Multiply = 0,
-    Devide = 5,
-    Add = 1,
-    Subtract = 2,
-    Max = 3,
-    Min = 4
+    Product = 0,
+    Average = 1,
+    Difference = 2,
+    Union = 3,
+    Intersection = 4,
+    Quotient = 5
 }
+
 
 //% color="#556B2F"
 namespace Noise {
@@ -81,6 +101,34 @@ namespace Noise {
                 
             default:
                 return [];
+        }
+    }
+    //% block="create $maskType noise mask width $width height $height || option $opt"
+    //% blockSetVariable=noiseMask
+    //% width.defl=160
+    //% height.defl=120
+    //% opt.defl=1
+    //% inlineInputMode=inline
+    export function CreateNoiseMask(maskType: MaskType, width: number, height: number, opt?: number): number[][] {
+        if (!currentRng) {
+            currentRng = new FastRandomBlocks(1234); // Default seed
+        }
+
+        switch (maskType) {
+            case MaskType.Gradient:
+                return generate_gradient_mask(width, height);
+            case MaskType.Solid:
+                return generate_solid_mask(width, height, opt); // value
+            case MaskType.Island:
+                return generate_island_mask(width, height)
+            case MaskType.Edge_falloff:
+                return generate_edge_falloff(width, height, opt) // margin
+            case MaskType.Horizontal_gradient:
+                return generate_horizontal_gradient(width, height)
+            case MaskType.Vertical_gradient:
+                return generate_vertical_gradient(width, height)
+            case MaskType.Checkerboard:
+                return generate_checkerboard(width, height, opt) // size 
         }
     }
 
@@ -335,20 +383,139 @@ namespace Noise {
 
         return river;
     }
-    
+    export function generate_gradient_mask(width: number, height: number): number[][] {
+        let mask: number[][] = [];
+
+        // Center of the map
+        let cx = width / 2;
+        let cy = height / 2;
+
+        // Maximum distance from center to a corner (for normalization)
+        let maxDist = Math.sqrt(cx * cx + cy * cy);
+
+        for (let y = 0; y < height; y++) {
+            let row: number[] = [];
+            for (let x = 0; x < width; x++) {
+                // Distance from center
+                let dx = x - cx;
+                let dy = y - cy;
+                let dist = Math.sqrt(dx * dx + dy * dy);
+
+                // Normalize distance -> 1 at center, 0 at edges
+                let value = 1 - (dist / maxDist);
+
+                // Clamp just in case
+                if (value < 0) value = 0;
+                if (value > 1) value = 1;
+
+                row.push(value);
+            }
+            mask.push(row);
+        }
+
+        return mask;
+    }
+    export function generate_solid_mask(width: number, height: number, value: number): number[][] {
+        let mask: number[][] = [];
+
+        for (let y = 0; y < height; y++) {
+            let row: number[] = [];
+            for (let x = 0; x < width; x++) {
+                row.push(value); // same everywhere
+            }
+            mask.push(row);
+        }
+
+        return mask;
+    }
+    export function generate_vertical_gradient(width: number, height: number): number[][] {
+        let map: number[][] = [];
+        for (let y = 0; y < height; y++) {
+            let row: number[] = [];
+            let value = y / (height - 1); // 0 at top, 1 at bottom
+            for (let x = 0; x < width; x++) row.push(value);
+            map.push(row);
+        }
+        return map;
+    }
+
+    export function generate_horizontal_gradient(width: number, height: number): number[][] {
+        let map: number[][] = [];
+        for (let y = 0; y < height; y++) {
+            let row: number[] = [];
+            for (let x = 0; x < width; x++) {
+                let value = x / (width - 1); // 0 at left, 1 at right
+                row.push(value);
+            }
+            map.push(row);
+        }
+        return map;
+    }
+
+
+    export function generate_island_mask(width: number, height: number): number[][] {
+        let mask: number[][] = [];
+        let cx = width / 2, cy = height / 2;
+        let maxDist = Math.min(cx, cy);
+
+        for (let y = 0; y < height; y++) {
+            let row: number[] = [];
+            for (let x = 0; x < width; x++) {
+                let dx = x - cx, dy = y - cy;
+                let dist = Math.sqrt(dx * dx + dy * dy);
+                let value = 1 - (dist / maxDist); // 1 at center, 0 at edge
+                if (value < 0) value = 0;
+                row.push(value);
+            }
+            mask.push(row);
+        }
+        return mask;
+    }
+
+    export function generate_checkerboard(width: number, height: number, size: number): number[][] {
+        let map: number[][] = [];
+        for (let y = 0; y < height; y++) {
+            let row: number[] = [];
+            for (let x = 0; x < width; x++) {
+                let value = ((Math.floor(x / size) + Math.floor(y / size)) % 2 === 0) ? 1 : 0;
+                row.push(value);
+            }
+            map.push(row);
+        }
+        return map;
+    }
+
+    export function generate_edge_falloff(width: number, height: number, margin: number): number[][] {
+        let map: number[][] = [];
+        for (let y = 0; y < height; y++) {
+            let row: number[] = [];
+            for (let x = 0; x < width; x++) {
+                let dx = Math.min(x, width - 1 - x);
+                let dy = Math.min(y, height - 1 - y);
+                let d = Math.min(dx, dy);
+                let value = Math.min(1, d / margin);
+                row.push(value);
+            }
+            map.push(row);
+        }
+        return map;
+    }
+
     /**
-     * Combine two noise maps to create interesting terrain features
-     * @param noiseMap1 The first noise map
-     * @param noiseMap2 The second noise map
-     * @param operation The operation to perform:
-     * - 0 = Multiply: multiplies corresponding values.
-     * - 1 = Add: averages corresponding values (normalized).
-     * - 2 = Subtract: subtracts second map from first and normalizes to [0,1].
-     * - 3 = Max: selects the maximum value at each position.
-     * - 4 = Min: selects the minimum value at each position.
-     * - 5 = Devide: devides corresponding values
-     * - Default: uses values from `noiseMap1` unchanged
-     */
+    * Combine two noise maps using different mathematical operations.
+    * Useful for generating terrain features, rivers, mountains, and masks.
+    *
+    * @param noiseMap1 The first noise map
+    * @param noiseMap2 The second noise map
+    * @param operation The operation to perform:
+    * - 0 = Product: element-wise multiplication of both maps
+    * - 1 = Average: element-wise mean of both maps
+    * - 2 = Difference: subtracts second map from first, normalized to [0,1]
+    * - 3 = Union: takes the maximum value at each position
+    * - 4 = Intersection: takes the minimum value at each position
+    * - 5 = Quotient: element-wise division of first map by second
+    * - Default: returns values from `noiseMap1` unchanged
+    */
     //% block="combine $noiseMap1 with $noiseMap2 using $operation"
     //% noiseMap1.defl=noiseMap1
     //% noiseMap1.shadow=variables_get
@@ -368,26 +535,27 @@ namespace Noise {
                 let combinedValue = 0;
 
                 switch (operation) {
-                    case 0: // Multiply
-                        combinedValue = Math.sqrt(val1 * val2); 
+                    case 0: // Product
+                        combinedValue = Math.sqrt(val1 * val2);
                         break;
-                    case 1: // Add
+                    case 1: // Average
                         combinedValue = (val1 + val2) / 2;
                         break;
-                    case 2: // Subtract
+                    case 2: // Difference
                         combinedValue = Math.max(0, Math.min(1, val1 - val2 + 0.5));
                         break;
-                    case 3: // Max
+                    case 3: // Union
                         combinedValue = Math.max(val1, val2);
                         break;
-                    case 4: // Min
+                    case 4: // Intersection
                         combinedValue = Math.min(val1, val2);
                         break;
-                    case 5: // devide??
+                    case 5: // Quotient
                         combinedValue = val1 / val2;
                         break;
-                    default:
+                    default: // Passthrough
                         combinedValue = val1;
+                        break;
                 }
 
                 row.push(combinedValue);
@@ -397,6 +565,7 @@ namespace Noise {
 
         return result;
     }
+
     
 
 
