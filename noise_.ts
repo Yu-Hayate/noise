@@ -10,6 +10,15 @@ enum NoiseType {
     //% block="River"
     River
 }
+enum CombineOptions {
+    Multiply = 0,
+    Devide = 6,
+    Add = 1,
+    Subtract = 2,
+    Max = 3,
+    Min = 4,
+    LerpBlend = 5
+}
 
 //% color="#556B2F"
 namespace Noise {
@@ -329,7 +338,6 @@ namespace Noise {
     }
 
 
-
     /**
      * Combine two noise maps to create interesting terrain features
      * @param noiseMap1 The first noise map
@@ -349,7 +357,7 @@ namespace Noise {
     //% noiseMap2.defl=noiseMap2
     //% noiseMap2.shadow=variables_get
     //% operation.defl=0
-    export function combineNoiseMaps(noiseMap1: number[][], noiseMap2: number[][], operation: number): number[][] {
+    export function combineNoiseMaps(noiseMap1: number[][], noiseMap2: number[][], operation: CombineOptions): number[][] {
         const h = Math.min(noiseMap1.length, noiseMap2.length);
         const w = Math.min(noiseMap1[0].length, noiseMap2[0].length);
         let result: number[][] = [];
@@ -363,7 +371,7 @@ namespace Noise {
 
                 switch (operation) {
                     case 0: // Multiply
-                        combinedValue = val1 * val2;
+                        combinedValue = Math.sqrt(val1 * val2); 
                         break;
                     case 1: // Add
                         combinedValue = (val1 + val2) / 2;
@@ -378,7 +386,10 @@ namespace Noise {
                         combinedValue = Math.min(val1, val2);
                         break;
                     case 5: // lerp based on val1
-                        combinedValue = noise_blend(val1, val2)
+                        combinedValue = noise_blend(val1, val2);
+                        break;
+                    case 6: // devide??
+                        combinedValue = val1 / val2;
                         break;
                     default:
                         combinedValue = val1;
