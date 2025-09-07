@@ -12,12 +12,11 @@ enum NoiseType {
 }
 enum CombineOptions {
     Multiply = 0,
-    Devide = 6,
+    Devide = 5,
     Add = 1,
     Subtract = 2,
     Max = 3,
-    Min = 4,
-    LerpBlend = 5
+    Min = 4
 }
 
 //% color="#556B2F"
@@ -336,8 +335,7 @@ namespace Noise {
 
         return river;
     }
-
-
+    
     /**
      * Combine two noise maps to create interesting terrain features
      * @param noiseMap1 The first noise map
@@ -348,7 +346,7 @@ namespace Noise {
      * - 2 = Subtract: subtracts second map from first and normalizes to [0,1].
      * - 3 = Max: selects the maximum value at each position.
      * - 4 = Min: selects the minimum value at each position.
-     * - 5 = Lerp blend: interpolates `noiseMap2` based on the scaled value of `noiseMap1`.
+     * - 5 = Devide: devides corresponding values
      * - Default: uses values from `noiseMap1` unchanged
      */
     //% block="combine $noiseMap1 with $noiseMap2 using $operation"
@@ -385,10 +383,7 @@ namespace Noise {
                     case 4: // Min
                         combinedValue = Math.min(val1, val2);
                         break;
-                    case 5: // lerp based on val1
-                        combinedValue = noise_blend(val1, val2);
-                        break;
-                    case 6: // devide??
+                    case 5: // devide??
                         combinedValue = val1 / val2;
                         break;
                     default:
@@ -402,11 +397,7 @@ namespace Noise {
 
         return result;
     }
-    function noise_blend(a: number, b: number): number { // maps a into a percantage and uses it as lerping on b
-        let t = (a - 1) / 14
-        let result = b * t
-        return result
-    }
+    
 
 
     /**

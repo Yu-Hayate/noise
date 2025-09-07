@@ -1,5 +1,5 @@
 // Example usage:
-let rng = Random.createRNG(12345);
+let rng = Random.createRNG(123435);
 Noise.setSeed(rng);
 
 // Create river noise
@@ -15,10 +15,10 @@ pause(1000);
 let baseNoise = Noise.createNoiseMap(NoiseType.Terrain, 160, 120, 4);
 
 // Create river network
-let riverNoise = Noise.createNoiseMap(NoiseType.Static, 160, 120, 1);
+let riverNoise = Noise.createNoiseMap(NoiseType.River, 160, 120, 1);
 
 // Combine them (rivers cut through terrain)
-let combinedNoise = Noise.combineNoiseMaps(baseNoise, riverNoise, 2); // 4 = min operation
+let combinedNoise = Noise.combineNoiseMaps(baseNoise, riverNoise, CombineOptions.LerpBlend);
 
 // Visualize
 let terrainImage = Noise.noiseToImage(combinedNoise);
